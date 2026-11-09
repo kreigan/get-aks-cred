@@ -21,7 +21,7 @@ by `KUBE_DATA_DIR`).
 
 1. Install the tools (I use `mise` to manage them):
    ```bash
-   mise use -g azure-cli azure-kubelogin kubectl jq python@3.12
+   mise use -g azure azure-kubelogin kubectl jq python@3.12
    ```
 
 2. Create the directory for cluster definitions:

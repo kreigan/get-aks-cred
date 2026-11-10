@@ -44,6 +44,8 @@ by `KUBE_DATA_DIR`).
    EOF
    ```
 
+   `alias` and `namespace` are optional.
+
 4. Set the browser used for Azure login (WSL):
 
    ```bash

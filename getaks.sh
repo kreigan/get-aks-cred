@@ -69,12 +69,12 @@ n_clusters=$(jq '.clusters | length' <<<"$json")
 log "Found $n_clusters cluster(s)"
 
 bad=$(jq -r '.clusters[]
-  | select(.alias == null or .subscription == null or .name == null
-           or .resource_group == null or .namespace == null)
+  | select(.subscription == null or .name == null or .resource_group == null)
   | (.alias // .name // "?")' <<<"$json")
 [[ -z $bad ]] || die "incomplete cluster data: $bad"
 
-dup=$(jq -r '[.clusters[].alias] | group_by(.) | map(select(length > 1)) | .[0][0] // empty' <<<"$json")
+dup=$(jq -r '[.clusters[] | .alias // .name]
+  | group_by(.) | map(select(length > 1)) | .[0][0] // empty' <<<"$json")
 [[ -z $dup ]] || die "duplicate alias: $dup"
 
 # ---- 2. Azure login and tenant -----------------------------------------------
@@ -124,25 +124,30 @@ mapfile -t CLUSTERS < <(jq -c '.clusters[]' <<<"$json")
 i=0
 for c in "${CLUSTERS[@]}"; do
   i=$((i + 1))
-  ctx=$(jq -r '.alias' <<<"$c")
+  ctx=$(jq -r '.alias // .name' <<<"$c")
   sub=$(jq -r '.subscription' <<<"$c")
   rg=$(jq -r '.resource_group' <<<"$c")
   name=$(jq -r '.name' <<<"$c")
-  ns=$(jq -r '.namespace' <<<"$c")
+  ns=$(jq -r '.namespace // empty' <<<"$c")
 
-  log "[$i/$n_clusters] $ctx -> cluster=$name rg=$rg sub=$sub ns=$ns"
+  log "[$i/$n_clusters] $ctx -> cluster=$name rg=$rg sub=$sub${ns:+ ns=$ns}"
 
   log "  fetching credentials"
-  az aks get-credentials --only-show-errors \
+  get_credentials_args=(--only-show-errors \
     --subscription "$sub" \
     --resource-group "$rg" \
-    --name "$name" \
-    --context "$ctx" \
+    --name "$name")
+  if jq -e '.alias != null' <<<"$c" >/dev/null; then
+    get_credentials_args+=(--context "$ctx")
+  fi
+  az aks get-credentials "${get_credentials_args[@]}" \
     --overwrite-existing \
     --file "$tmp"
 
-  kubectl config set-context "$ctx" --namespace="$ns" >/dev/null
-  log "  namespace set to $ns"
+  if jq -e 'has("namespace")' <<<"$c" >/dev/null; then
+    kubectl config set-context "$ctx" --namespace="$ns" >/dev/null
+    log "  namespace set to $ns"
+  fi
 
   kubectl config use-context "$ctx" >/dev/null
   log "  current context now: $(ctx_of "$tmp")"
@@ -160,7 +165,7 @@ done
 # ---- 5. Merge managed contexts under one user --------------------------------
 
 log "Merging users of managed contexts into '$CANON_USER'"
-ctx_names=$(jq -c '[.clusters[].alias]' <<<"$json")
+ctx_names=$(jq -c '[.clusters[] | .alias // .name]' <<<"$json")
 kubectl config view --raw -o json > "$tmp.json"
 
 users_before=$(jq '.users // [] | length' "$tmp.json")
@@ -211,5 +216,5 @@ log "Config replaced: $CONFIG"
 # ---- Summary -----------------------------------------------------------------
 
 log "Current context in $CONFIG: $(ctx_of "$CONFIG")"
-log "Managed contexts: $(jq -r '[.clusters[].alias] | join(", ")' <<<"$json")"
+log "Managed contexts: $(jq -r '[.clusters[] | .alias // .name] | join(", ")' <<<"$json")"
 log "Done"

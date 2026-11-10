@@ -20,16 +20,19 @@ by `KUBE_DATA_DIR`).
 ## Installation and usage
 
 1. Install the tools (I use `mise` to manage them):
+
    ```bash
    mise use -g azure azure-kubelogin kubectl jq python@3.12
    ```
 
 2. Create the directory for cluster definitions:
+
    ```bash
    mkdir -p $HOME/.config/kube
    ```
 
 3. Describe your clusters in a TOML file:
+
    ```bash
    cat <<EOF > $HOME/.config/kube/prod.toml
    [[kube.aks.clusters]]
@@ -42,21 +45,25 @@ by `KUBE_DATA_DIR`).
    ```
 
 4. Set the browser used for Azure login (WSL):
+
    ```bash
    export BROWSER='/mnt/c/Program Files (x86)/Microsoft/Edge/Application/msedge.exe'
    ```
    To keep the variable between sessions, add this line to `~/.bashrc`.
 
 5. Log in to the tenant (a browser window opens):
+
    ```bash
    az login --tenant mytenant.onmicrosoft.com
    ```
 
 6. Download the script:
+
    ```bash
    wget https://github.com/kreigan/get-aks-cred/raw/refs/heads/main/getaks.sh -O ~/getaks.sh
 
-8. Run the script:
+7. Run the script:
+
    ```bash
    bash ~/getaks.sh
    ```
